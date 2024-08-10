@@ -1,15 +1,27 @@
 from dataclasses import dataclass, field
 from typing import Set, Dict, Any
-from relationship import Relationship
+from .relationship import Relationship
 
 @dataclass
 class Node:
     name: str
+    facts: Dict[int, Set[str]] = field(default_factory=dict)
     documents: Set[int] = field(default_factory=set)
     edges: Dict['Node', Set[Relationship]] = field(default_factory=dict)
 
+    def __init__(self, name: str):
+        self.name = name
+        self.facts = dict()
+        self.documents = set()
+        self.edges = dict()
+
     def add_document(self, document: int) -> None:
         self.documents.add(document)
+
+    def add_fact(self, document: int, fact: str) -> None:
+        if document not in self.facts:
+            self.facts[document] = set()
+        self.facts[document].add(fact)
 
     def add_relationship(self, target_node: 'Node', relationship: Relationship) -> None:
         if target_node not in self.edges:

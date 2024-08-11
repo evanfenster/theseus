@@ -27,6 +27,9 @@ class Path:
             return None
         return self.elements[-1]
     
+    def get_nodes(self) -> List[Node]:
+        return [element for element in self.elements if isinstance(element, Node)]
+    
     def pop(self, times: int = 1) -> None:
         for _ in range(times):
             if self.elements:

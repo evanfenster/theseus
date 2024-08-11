@@ -7,6 +7,7 @@ from model.relationship import Relationship
 from model.path import Path
 from enum import Enum
 from pydantic import BaseModel
+from prompts.search_prompts import SOURCE_SYSTEM_PROMPT, SEARCH_SYSTEM_PROMPT, SEARCH_USER_PROMPT, ANSWER_SYSTEM_PROMPT, ANSWER_USER_PROMPT
 
 # Load environment variables
 load_dotenv()
@@ -31,24 +32,41 @@ def search(graph: Dict[str, Node], query: str):
 
     # Begin search
     print("Starting search ...")
-    bfs(graph, query, [path], set([source_node]))
+    result = bfs(graph, query, [path], set([source_node]), 3)
+    print(result.best_guess)
+    print(result.positive_explation)
+    print(result.potential_issues)
+
+def select_source_node(nodes: Enum, query: str):
+    class SourceNode(BaseModel):
+        source: nodes
+
+    completion = client.beta.chat.completions.parse(
+        model="gpt-4o-2024-08-06",
+        messages=[
+            {"role": "system", "content": SOURCE_SYSTEM_PROMPT},
+            {"role": "user", "content": "Given the following question, select an entity that most closely matches something DIRECTLY MENTIONED in the question: " + query}
+        ],
+        response_format=SourceNode,
+    )
+
+    ans = completion.choices[0].message.parsed
+    return ans.source.name
 
 # bfs - BEST First Search
-def bfs(graph: Dict[str, Node], query: str, paths: list[Path], visited: set()):
-    # maintain a list of "paths" taken so far: entity -> relationship -> entity -> relationship -> etc. etc. 
-    # Complete: true/false - ask LLM if it knows enough based on current set of paths to answer question
-    # Optional[NextNode]: if !Complete, continue BFS (BestFirstSearch), from NextNode and append new information to that path
-    # repeat
+def bfs(graph: Dict[str, Node], query: str, paths: list[Path], visited: set(), max_iterations: int):
     options = []
-    for path in paths: 
-        last_node = path.last_node()
-        for neighbor in last_node.edges.keys():
-            if neighbor not in visited:
-                path_copy = Path()
-                path_copy.elements = path.elements.copy()
-                path_copy.add_edge(last_node.edges[neighbor])
-                path_copy.add_node(graph[neighbor.name])
-                options.append(path_copy)
+    option_num_to_path_num = {}
+    for i, path in enumerate(paths): 
+        for node in path.get_nodes():
+            for neighbor in node.edges.keys():
+                if neighbor not in visited:
+                    path_copy = Path()
+                    path_copy.elements = path.elements.copy()
+                    path_copy.add_edge(node.edges[neighbor])
+                    path_copy.add_node(graph[neighbor.name])
+                    option_num_to_path_num[len(options)] = i
+                    options.append(path_copy)
     
     options_enum = Enum('Option', {f'option_{i}': i for i in range(len(options))})
     
@@ -58,78 +76,55 @@ def bfs(graph: Dict[str, Node], query: str, paths: list[Path], visited: set()):
         next_step: options_enum
 
     options_string = [f"option_{i}: {option}" for i, option in enumerate(options)]
-    print(options_string)
-    
-    system_prompt = """
-    You are an AI designed to assist in a graph search algorithm. Your task is to analyze the current paths explored and determine the next step to explore, as well as whether the current information is sufficient to answer the original query.
-
-    Instructions:
-    1. Review the paths explored so far and the original query.
-    2. Determine if the information gathered so far is sufficient to answer the query.
-    3. If the current information is enough to answer the query without exploring any further, set 'complete' to True.
-    4. If more information is needed to answer the query, set 'complete' to False.
-    5. Regardless of whether 'complete' is True or False, select the most promising 'next_step' to explore based on its potential to provide relevant information for the query.
-    6. Note that there may not be an obvious next_step that will bring us much closer to answering the question, but we should still pick the best choice among the available options.
-    """
-    user_prompt = f"""
-    Based on the information provided, please determine if we already have enough information to answer the question without taking any extra steps. If we do, set 'complete' to True. Otherwise, set 'complete' to False.
-
-    If 'complete' is False, determine which next step will give the best chance of eventually answering the question, even if it doesn't provide much more detail immediately.
-
-    Note that for each option, only the last edge and node are new; the rest of the path has already been explored.
-
-    When selecting the next step:
-    1. Choose the option that you believe will lead us closer to answering the query, even if it doesn't provide immediate answers.
-    2. Consider how this step might open up new paths or connections that could be valuable later.
-    3. Remember that the best next step might not directly relate to the answer, but could provide crucial context or lead to important connections.
-
-    Always select a next step, even if you set 'complete' to True.
-
-    Remember to consider the context of the query and the information we've gathered so far when making your decision.
-
-    Query: {query}
-    Options: {options_string}
-    """
 
     completion = client.beta.chat.completions.parse(
         model="gpt-4o-2024-08-06",
         messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"Query: {query}\nPaths explored: {paths}\nOptions: {options}\nDetermine if the search is complete or which node to explore next."}
+            {"role": "system", "content": SEARCH_SYSTEM_PROMPT},
+            {"role": "user", "content": SEARCH_USER_PROMPT.format(query=query, options_string=options_string)}
         ],
         response_format=NextStep,
     )
 
     result = completion.choices[0].message.parsed
+
+    print("#--------------------------------------------------------------#")
+    print("Options:")
+    for i, option in enumerate(options):
+        print(f"option_{i}: {option}")
     print("Reasoning: " + result.reasoning)
     print("Complete?: " + str(result.complete))
     print("Option Chosen: " + result.next_step.name)
+    print("#--------------------------------------------------------------#")
 
-def select_source_node(nodes: Enum, query: str):
-    class SourceNode(BaseModel):
-        source: nodes
+    complete = result.complete
+    reasoning = result.reasoning
+    option_num = int(result.next_step.name.split("_")[-1])
+    if complete or max_iterations <= 1:
+        return solidify_answer(query, reasoning, options[option_num])
+    else:
+        path_taken_num = option_num_to_path_num[option_num]
+        paths[path_taken_num] = options[option_num]
+        visited_node = paths[path_taken_num].last_node()
+        visited.add(visited_node)
+        return bfs(graph, query, paths, visited, max_iterations - 1)
 
-    system_prompt = """
-    You are an AI designed to select the most relevant entity from a given list based on a question provided. Your task is to analyze the question and choose the entity from the list that best corresponds to the context or content of the question.
-
-    Instructions:
-    1. Read the list of entities carefully.
-    2. Analyze the question provided by the user.
-    3. Select the entity from the list that most accurately matches or relates to the question.
-    4. Remember, the chosen entity should match something listed in the question. It should NOT answer the question itself. 
-    """
+def solidify_answer(query: str, reasoning: str, path: Path):
+    class Answer(BaseModel):
+        best_guess: str
+        positive_explation: str
+        potential_issues: str
 
     completion = client.beta.chat.completions.parse(
         model="gpt-4o-2024-08-06",
         messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": "Given the following question, select an entity that most closely matches something DIRECTLY MENTIONED in the question: " + query}
+            {"role": "system", "content": ANSWER_SYSTEM_PROMPT},
+            {"role": "user", "content": ANSWER_USER_PROMPT.format(query=query, reasoning=reasoning, final_path=str(path))}
         ],
-        response_format=SourceNode,
+        response_format=Answer,
     )
 
-    ans = completion.choices[0].message.parsed
-    return ans.source.name
+    return completion.choices[0].message.parsed
 
 
 

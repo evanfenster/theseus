@@ -15,7 +15,7 @@ def main():
 
     graph = create_knowledge_graph(documents)
 
-    search(graph, "Who is Sue's favorite customer?")
+    search(graph, "Who is Sue's favorite customer? Include their name.")
     #visualize(graph)
 
 

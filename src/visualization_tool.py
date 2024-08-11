@@ -13,11 +13,12 @@ def get_knowledge_graph(graph: Dict[str, 'Node']):
 
     # Add nodes and edges to the graph
     for node_name, node in graph.items():
-        G.add_node(node_name)
-        for target_node, relationships in node.edges.items():
-            for relationship in relationships:
-                if not relationship.backwards:
-                    G.add_edge(node_name, target_node.name, label=relationship.information)
+        if node_name != "__Detective__":
+            G.add_node(node_name)
+            for target_node, relationships in node.edges.items():
+                for relationship in relationships:
+                    if not relationship.backwards:
+                        G.add_edge(node_name, target_node.name, label=relationship.information)
 
     # Create a matplotlib figure and axis
     fig, ax = plt.subplots(figsize=(14, 10))
@@ -34,13 +35,14 @@ def get_knowledge_graph(graph: Dict[str, 'Node']):
 
     # Add node information as text
     for node_name, node in graph.items():
-        x, y = pos[node_name]
-        ax.text(x, y+0.1, f"Docs: {', '.join(map(str, node.documents))}", ha='center', va='center', bbox=dict(facecolor='white', edgecolor='none', alpha=0.7), fontsize=8)
-        
-        # Split facts into lines to avoid overlapping
-        fact_lines = [f"{fact} (Doc: {doc_id})" for doc_id, facts in node.facts.items() for fact in facts]
-        fact_text = "\n".join(fact_lines)
-        ax.text(x, y-0.1, fact_text, ha='center', va='top', bbox=dict(facecolor='white', edgecolor='none', alpha=0.7), fontsize=8)
+        if node_name != "__Detective__":
+            x, y = pos[node_name]
+            ax.text(x, y+0.1, f"Docs: {', '.join(map(str, node.documents))}", ha='center', va='center', bbox=dict(facecolor='white', edgecolor='none', alpha=0.7), fontsize=8)
+            
+            # Split facts into lines to avoid overlapping
+            fact_lines = [f"{fact} (Doc: {doc_id})" for doc_id, facts in node.facts.items() for fact in facts]
+            fact_text = "\n".join(fact_lines)
+            ax.text(x, y-0.1, fact_text, ha='center', va='top', bbox=dict(facecolor='white', edgecolor='none', alpha=0.7), fontsize=8)
 
     ax.set_title("Knowledge Graph Visualization", fontsize=14)
     ax.axis('off')

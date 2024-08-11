@@ -3,6 +3,8 @@ from model.relationship import Relationship
 from typing import Set, Dict
 from graph_creator import create_knowledge_graph
 from visualization_tool import visualize
+from search import search
+import os
 
 def main():
     # Initialize the graph
@@ -12,17 +14,22 @@ def main():
     documents = read_documents()
 
     graph = create_knowledge_graph(documents)
+
+    #search(graph, "Who protects the treasure?")
     visualize(graph)
 
 
 def read_documents() -> Dict[int, str]:
-    # Placeholder function to read documents
-    # In a real implementation, this would read from files or a database
-    return {
-        1: open("documents/story1.txt").read(),
-        2: open("documents/story2.txt").read(),
-        3: open("documents/story3.txt").read(),
-    }
+    documents = {}
+    document_id = 1
+    documents_dir = "documents"
+    for filename in os.listdir(documents_dir):
+        if filename.endswith(".txt"):
+            file_path = os.path.join(documents_dir, filename)
+            with open(file_path, 'r') as file:
+                documents[document_id] = file.read()
+            document_id += 1
+    return documents
 
 if __name__ == "__main__":
     main()

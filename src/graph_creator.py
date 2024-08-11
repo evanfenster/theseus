@@ -45,6 +45,14 @@ def create_knowledge_graph(documents: Dict[int, str]) -> Dict[str, Node]:
             graph[source].add_relationship(graph[target], proper_relationship)
             graph[target].add_relationship(graph[source], reverse_relationship)
 
+    # Add a central node that is connected to all other nodes, but only in one direction
+    central_node_name = "__Detective__"
+    add_node(graph, central_node_name, [], -1)
+    for node_name, node in graph.items():
+        if node_name != central_node_name:
+            connector = Relationship("knows about", -1, {-1}, False)
+            graph[central_node_name].add_relationship(node, connector)
+    
     return graph
 
 def add_node(graph: Dict[str, Node], name: str, facts: List[str], doc_id: int) -> None:
@@ -93,8 +101,12 @@ def extract_entities_and_relationships(content: str):
     You are a helpful assistant that extracts entities and relationships from text.
     
     Guidelines:
-    - Any specific facts about an entity should be listed as a descriptor.
-    - If a fact relates an entity to another entity, it should be listed as a relationship.
+    - Descriptors: Include any adjectives or descriptive phrases that directly describe a singular entity (not a relationship between two).
+      Example: For "Jim is an old, fat man", "old" and "fat" are descriptors for Jim.
+    - Relationships: Create a relationship when one noun (person, place, or thing) is connected or possesses to another noun.
+      Example: For "Jim lives in New York City", create a relationship between Jim and New York City. For "Pam's favorite day of the week is Saturday", create a relationship between Pam and Saturday.
+    - Avoid listing general facts or actions as relationships unless they connect two distinct entities.
+    - If two entities are synonyms for each other, use the first word to describe it. If they are clearly distinct entities, there can remain distinct words.
     
     Please analyze the given text and extract entities and relationships accordingly.
     """

@@ -2,3 +2,5 @@
 /venv
 __pycache__
 /src/graph_info
+/old_example
+/documents/*.txt

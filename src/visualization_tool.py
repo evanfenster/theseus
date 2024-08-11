@@ -23,8 +23,22 @@ def get_knowledge_graph(graph: Dict[str, 'Node']):
     # Create a matplotlib figure and axis
     fig, ax = plt.subplots(figsize=(14, 10))
 
-    # Use a different layout algorithm for better spacing
-    pos = nx.circular_layout(G)
+    # Use a different layout algorithm for better visualization of distinct components
+    components = list(nx.connected_components(G.to_undirected()))
+    if len(components) > 1:
+        # If there are multiple components, use separate layouts for each
+        pos = {}
+        offset = 0
+        for component in components:
+            subgraph = G.subgraph(component)
+            sub_pos = nx.circular_layout(subgraph, scale=1.5)
+            # Offset each component to avoid overlap
+            sub_pos = {node: (x + offset, y) for node, (x, y) in sub_pos.items()}
+            pos.update(sub_pos)
+            offset += 8/len(components)  # Adjust this value to increase/decrease space between components
+    else:
+        # If there's only one component, use circular layout for the entire graph
+        pos = nx.circular_layout(G, scale=2.0)
 
     # Draw the graph with thicker edges
     nx.draw(G, pos, with_labels=True, node_color='lightblue', node_size=4000, font_size=10, font_weight='bold', edge_color='gray', linewidths=1.5, arrows=True, arrowsize=20, ax=ax)
@@ -80,5 +94,9 @@ def visualize(graph: Dict[str, 'Node']):
     third_label = tk.Label(third_tab, text="Third Tab", font=("Arial", 16))
     third_label.pack(padx=20, pady=20)
 
-    # Start the Tkinter main loop
+    # Add a button to close the window
+    close_button = tk.Button(root, text="Close", command=root.quit)
+    close_button.pack(pady=10)
+
+    # Wait for the window to be closed
     root.mainloop()

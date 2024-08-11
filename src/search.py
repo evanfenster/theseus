@@ -32,11 +32,11 @@ def search(graph: Dict[str, Node], query: str, depth: int):
 
     # Begin search
     print("Starting search ...")
-    result = bfs(graph, query, [path], set([source_node]), depth)
+    result, final_path = bfs(graph, query, [path], set([source_node]), depth)
     print(result.best_guess)
     print(result.positive_explation)
     print(result.potential_issues)
-    return result
+    return result, final_path
 
 def select_source_node(nodes: Enum, query: str):
     class SourceNode(BaseModel):
@@ -125,7 +125,7 @@ def solidify_answer(query: str, reasoning: str, path: Path):
         response_format=Answer,
     )
 
-    return completion.choices[0].message.parsed
+    return (completion.choices[0].message.parsed, path)
 
 
 

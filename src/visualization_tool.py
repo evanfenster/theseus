@@ -6,9 +6,10 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from typing import Dict
 from model.node import Node
 from model.relationship import Relationship
+from model.path import Path
 from search import search
 
-def get_knowledge_graph(graph: Dict[str, 'Node']):
+def get_knowledge_graph(graph: Dict[str, 'Node'], final_path: Path, ax=None):
     # Create a NetworkX graph
     G = nx.DiGraph()
 
@@ -18,11 +19,14 @@ def get_knowledge_graph(graph: Dict[str, 'Node']):
             G.add_node(node_name)
             for target_node, relationships in node.edges.items():
                 for relationship in relationships:
-                    if not relationship.backwards:
-                        G.add_edge(node_name, target_node.name, label=relationship.information)
+                    G.add_edge(node_name, target_node.name, label=relationship.information)
 
-    # Create a matplotlib figure and axis
-    fig, ax = plt.subplots(figsize=(14, 10))
+    # Create a matplotlib figure and axis if not provided
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(14, 10))
+    else:
+        fig = ax.figure
+
 
     # Use a different layout algorithm for better visualization of distinct components
     components = list(nx.connected_components(G.to_undirected()))
@@ -41,8 +45,30 @@ def get_knowledge_graph(graph: Dict[str, 'Node']):
         # If there's only one component, use circular layout for the entire graph
         pos = nx.circular_layout(G, scale=2.0)
 
-    # Draw the graph with thicker edges
-    nx.draw(G, pos, with_labels=True, node_color='lightblue', node_size=4000, font_size=10, font_weight='bold', edge_color='gray', linewidths=1.5, arrows=True, arrowsize=20, ax=ax)
+    # Color nodes and edges based on the final path
+    node_colors = {}
+    edge_colors = {}
+    if final_path:
+        path_nodes = final_path.get_nodes()
+        for i, node in enumerate(path_nodes):
+            if i == 0:
+                node_colors[node.name] = 'yellow'
+            elif i == len(path_nodes) - 1:
+                node_colors[node.name] = 'purple'
+            else:
+                node_colors[node.name] = 'green'
+        
+        for i in range(0, len(final_path.elements) - 1, 2):
+            source = final_path.elements[i].name
+            target = final_path.elements[i+2].name
+            edge_colors[(source, target)] = 'green'
+
+    # Draw the graph with colored nodes and edges
+    nx.draw(G, pos, with_labels=True, 
+            node_color=[node_colors.get(node, 'lightblue') for node in G.nodes()],
+            edge_color=[edge_colors.get(edge, 'gray') for edge in G.edges()],
+            node_size=4000, font_size=10, font_weight='bold', 
+            linewidths=1.5, arrows=True, arrowsize=20, ax=ax)
 
     # Draw edge labels
     edge_labels = nx.get_edge_attributes(G, 'label')
@@ -64,31 +90,22 @@ def get_knowledge_graph(graph: Dict[str, 'Node']):
 
     return fig
 
-def visualize(graph: Dict[str, 'Node']):
-    # Create the main application window
-    root = tk.Tk()
-    root.title("Graph Visualization with Tabs")
-
-    # Create a Notebook (a tab control)
-    notebook = ttk.Notebook(root)
-    notebook.pack(fill='both', expand=True)
-
-    # Create tabs
+def create_graph_tab(notebook, graph):
     graph_tab = ttk.Frame(notebook)
-    question_tab = ttk.Frame(notebook)
-    third_tab = ttk.Frame(notebook)
-
     notebook.add(graph_tab, text="Graph")
-    notebook.add(question_tab, text="Ask a Question")
-    notebook.add(third_tab, text="Third Tab")
 
-    # Add graph to the first tab
-    fig = get_knowledge_graph(graph)
+    fig = get_knowledge_graph(graph, None)
     canvas = FigureCanvasTkAgg(fig, master=graph_tab)
     canvas.draw()
     canvas.get_tk_widget().pack(fill='both', expand=True)
+    graph_tab.canvas = canvas
 
-    # Add question input and results to the second tab
+    return graph_tab
+
+def create_question_tab(notebook, graph, graph_tab):
+    question_tab = ttk.Frame(notebook)
+    notebook.add(question_tab, text="Ask a Question")
+
     question_label = tk.Label(question_tab, text="Enter your question:")
     question_label.pack(pady=10)
 
@@ -115,20 +132,56 @@ def visualize(graph: Dict[str, 'Node']):
 
     def submit_question():
         query = question_entry.get()
-        result = search(graph, query, 3)
+        result, path = search(graph, query, 3)
         best_guess_text.delete('1.0', tk.END)
         best_guess_text.insert(tk.END, result.best_guess)
         positive_explanation_text.delete('1.0', tk.END)
         positive_explanation_text.insert(tk.END, result.positive_explation)
         potential_issues_text.delete('1.0', tk.END)
         potential_issues_text.insert(tk.END, result.potential_issues)
+        
+        print("Updating graph visualization...")
+        if hasattr(graph_tab, 'canvas'):
+            # Clear the current figure
+            graph_tab.canvas.figure.clear()
+            
+            # Redraw the graph on the existing figure
+            ax = graph_tab.canvas.figure.add_subplot(111)
+            get_knowledge_graph(graph, path, ax)
+            
+            # Refresh the canvas
+            graph_tab.canvas.draw()
+            print("REDREW")
+        else:
+            print("No canvas attribute found in graph_tab")
 
     submit_button = tk.Button(question_tab, text="Submit", command=submit_question)
     submit_button.pack(pady=10)
 
-    # Add text to the third tab
+    return question_tab
+
+def create_third_tab(notebook):
+    third_tab = ttk.Frame(notebook)
+    notebook.add(third_tab, text="Third Tab")
+
     third_label = tk.Label(third_tab, text="Third Tab", font=("Arial", 16))
     third_label.pack(padx=20, pady=20)
+
+    return third_tab
+
+def visualize(graph: Dict[str, 'Node']):
+    # Create the main application window
+    root = tk.Tk()
+    root.title("Graph Visualization with Tabs")
+
+    # Create a Notebook (a tab control)
+    notebook = ttk.Notebook(root)
+    notebook.pack(fill='both', expand=True)
+
+    # Create tabs
+    graph_tab = create_graph_tab(notebook, graph)
+    question_tab = create_question_tab(notebook, graph, graph_tab)
+    third_tab = create_third_tab(notebook)
 
     # Add a button to close the window
     close_button = tk.Button(root, text="Close", command=root.quit)

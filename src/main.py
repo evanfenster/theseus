@@ -15,8 +15,8 @@ def main():
 
     graph = create_knowledge_graph(documents)
 
-    search(graph, "Who is Sue's favorite customer? Include their name.")
-    #visualize(graph)
+   # search(graph, "Who is Sue's favorite customer? Include their name.", 3)
+    visualize(graph)
 
 
 def read_documents() -> Dict[int, str]:

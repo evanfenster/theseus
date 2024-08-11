@@ -18,7 +18,7 @@ OpenAI.api_key = os.getenv("OPENAI_API_KEY")
 # Initialize OpenAI client
 client = OpenAI()
 
-def search(graph: Dict[str, Node], query: str):
+def search(graph: Dict[str, Node], query: str, depth: int):
     node_names = Enum('Entity', {x: x for x in graph.keys()})
     # Select a source node
     source_name = select_source_node(node_names, query)
@@ -32,10 +32,11 @@ def search(graph: Dict[str, Node], query: str):
 
     # Begin search
     print("Starting search ...")
-    result = bfs(graph, query, [path], set([source_node]), 3)
+    result = bfs(graph, query, [path], set([source_node]), depth)
     print(result.best_guess)
     print(result.positive_explation)
     print(result.potential_issues)
+    return result
 
 def select_source_node(nodes: Enum, query: str):
     class SourceNode(BaseModel):

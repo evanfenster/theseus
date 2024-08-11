@@ -6,6 +6,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from typing import Dict
 from model.node import Node
 from model.relationship import Relationship
+from search import search
 
 def get_knowledge_graph(graph: Dict[str, 'Node']):
     # Create a NetworkX graph
@@ -74,11 +75,11 @@ def visualize(graph: Dict[str, 'Node']):
 
     # Create tabs
     graph_tab = ttk.Frame(notebook)
-    second_tab = ttk.Frame(notebook)
+    question_tab = ttk.Frame(notebook)
     third_tab = ttk.Frame(notebook)
 
     notebook.add(graph_tab, text="Graph")
-    notebook.add(second_tab, text="Second Tab")
+    notebook.add(question_tab, text="Ask a Question")
     notebook.add(third_tab, text="Third Tab")
 
     # Add graph to the first tab
@@ -87,10 +88,45 @@ def visualize(graph: Dict[str, 'Node']):
     canvas.draw()
     canvas.get_tk_widget().pack(fill='both', expand=True)
 
-    # Add text to the second and third tabs
-    second_label = tk.Label(second_tab, text="Second Tab", font=("Arial", 16))
-    second_label.pack(padx=20, pady=20)
+    # Add question input and results to the second tab
+    question_label = tk.Label(question_tab, text="Enter your question:")
+    question_label.pack(pady=10)
 
+    question_entry = tk.Entry(question_tab, width=50)
+    question_entry.pack(pady=10)
+
+    result_frame = ttk.Frame(question_tab)
+    result_frame.pack(fill='both', expand=True, padx=20, pady=20)
+
+    best_guess_label = tk.Label(result_frame, text="Best Guess:")
+    best_guess_label.pack(anchor='w')
+    best_guess_text = tk.Text(result_frame, height=3, wrap='word')
+    best_guess_text.pack(fill='x', pady=5)
+
+    positive_explanation_label = tk.Label(result_frame, text="Positive Explanation:")
+    positive_explanation_label.pack(anchor='w')
+    positive_explanation_text = tk.Text(result_frame, height=5, wrap='word')
+    positive_explanation_text.pack(fill='x', pady=5)
+
+    potential_issues_label = tk.Label(result_frame, text="Potential Issues:")
+    potential_issues_label.pack(anchor='w')
+    potential_issues_text = tk.Text(result_frame, height=3, wrap='word')
+    potential_issues_text.pack(fill='x', pady=5)
+
+    def submit_question():
+        query = question_entry.get()
+        result = search(graph, query, 3)
+        best_guess_text.delete('1.0', tk.END)
+        best_guess_text.insert(tk.END, result.best_guess)
+        positive_explanation_text.delete('1.0', tk.END)
+        positive_explanation_text.insert(tk.END, result.positive_explation)
+        potential_issues_text.delete('1.0', tk.END)
+        potential_issues_text.insert(tk.END, result.potential_issues)
+
+    submit_button = tk.Button(question_tab, text="Submit", command=submit_question)
+    submit_button.pack(pady=10)
+
+    # Add text to the third tab
     third_label = tk.Label(third_tab, text="Third Tab", font=("Arial", 16))
     third_label.pack(padx=20, pady=20)
 

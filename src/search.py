@@ -25,7 +25,12 @@ def search(graph: Dict[str, Node], query: str):
     source_node = graph[source_name]
     # bfs(graph, query, source_node, set([source_node]))
 
+# bfs - BEST First Search
 def bfs(graph: Dict[str, Node], query: str, current_node: Node, visited: set()):
+    # maintain a list of "paths" taken so far: entity -> relationship -> entity -> relationship -> etc. etc. 
+    # Complete: true/false - ask LLM if it knows enough based on current set of paths to answer question
+    # Optional[NextNode]: if !Complete, continue BFS (BestFirstSearch), from NextNode and append new information to that path
+    # repeat
     pass
 
 def select_source_node(nodes: Enum, query: str):

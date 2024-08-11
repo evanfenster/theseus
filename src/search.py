@@ -18,8 +18,11 @@ OpenAI.api_key = os.getenv("OPENAI_API_KEY")
 # Initialize OpenAI client
 client = OpenAI()
 
-def search(graph: Dict[str, Node], query: str, depth: int):
-    node_names = Enum('Entity', {x: x for x in graph.keys()})
+def search(graph: Dict[str, Node], query: str, depth: int, permissions: set() = {-1}):
+    if -1 in permissions:
+        node_names = Enum('Entity', {x: x for x in graph.keys()})
+    else:
+        node_names = Enum('Entity', {x: x for x in graph.keys() if any(doc in permissions for doc in graph[x].documents)})
     # Select a source node
     source_name = select_source_node(node_names, query)
     source_node = graph[source_name]
@@ -32,7 +35,7 @@ def search(graph: Dict[str, Node], query: str, depth: int):
 
     # Begin search
     print("Starting search ...")
-    result, final_path = bfs(graph, query, [path], set([source_node]), depth)
+    result, final_path = bfs(graph, query, [path], set([source_node]), depth, permissions)
     print(result.best_guess)
     print(result.positive_explation)
     print(result.potential_issues)
@@ -55,20 +58,19 @@ def select_source_node(nodes: Enum, query: str):
     return ans.source.name
 
 # bfs - BEST First Search
-def bfs(graph: Dict[str, Node], query: str, paths: list[Path], visited: set(), max_iterations: int):
+def bfs(graph: Dict[str, Node], query: str, paths: list[Path], visited: set(), max_iterations: int, permissions: set() = {-1}):
     options = []
     option_num_to_path_num = {}
     for i, path in enumerate(paths): 
         for node in path.get_nodes():
             for neighbor in node.edges.keys():
-                if neighbor not in visited:
+                if neighbor not in visited and (-1 in permissions or any(rel.document_source in permissions for rel in node.edges[neighbor])):
                     path_copy = Path()
                     path_copy.elements = path.elements.copy()
                     path_copy.add_edge(node.edges[neighbor])
                     path_copy.add_node(graph[neighbor.name])
                     option_num_to_path_num[len(options)] = i
                     options.append(path_copy)
-    
     options_enum = Enum('Option', {f'option_{i}': i for i in range(len(options))})
     
     class NextStep(BaseModel):
@@ -76,7 +78,7 @@ def bfs(graph: Dict[str, Node], query: str, paths: list[Path], visited: set(), m
         complete: bool
         next_step: options_enum
 
-    options_string = [f"option_{i}: {option}" for i, option in enumerate(options)]
+    options_string = [f"option_{i}: {option.to_string(permissions)}" for i, option in enumerate(options)]
 
     completion = client.beta.chat.completions.parse(
         model="gpt-4o-2024-08-06",
@@ -92,7 +94,7 @@ def bfs(graph: Dict[str, Node], query: str, paths: list[Path], visited: set(), m
     print("#--------------------------------------------------------------#")
     print("Options:")
     for i, option in enumerate(options):
-        print(f"option_{i}: {option}")
+        print(f"option_{i}: {option.to_string(permissions)}")
     print("Reasoning: " + result.reasoning)
     print("Complete?: " + str(result.complete))
     print("Option Chosen: " + result.next_step.name)
@@ -102,15 +104,15 @@ def bfs(graph: Dict[str, Node], query: str, paths: list[Path], visited: set(), m
     reasoning = result.reasoning
     option_num = int(result.next_step.name.split("_")[-1])
     if complete or max_iterations <= 1:
-        return solidify_answer(query, reasoning, options[option_num])
+        return solidify_answer(query, reasoning, options[option_num], permissions)
     else:
         path_taken_num = option_num_to_path_num[option_num]
         paths[path_taken_num] = options[option_num]
         visited_node = paths[path_taken_num].last_node()
         visited.add(visited_node)
-        return bfs(graph, query, paths, visited, max_iterations - 1)
+        return bfs(graph, query, paths, visited, max_iterations - 1, permissions)
 
-def solidify_answer(query: str, reasoning: str, path: Path):
+def solidify_answer(query: str, reasoning: str, path: Path, permissions: set() = {-1}):
     class Answer(BaseModel):
         best_guess: str
         positive_explation: str
@@ -120,7 +122,7 @@ def solidify_answer(query: str, reasoning: str, path: Path):
         model="gpt-4o-2024-08-06",
         messages=[
             {"role": "system", "content": ANSWER_SYSTEM_PROMPT},
-            {"role": "user", "content": ANSWER_USER_PROMPT.format(query=query, reasoning=reasoning, final_path=str(path))}
+            {"role": "user", "content": ANSWER_USER_PROMPT.format(query=query, reasoning=reasoning, final_path=path.to_string(permissions))}
         ],
         response_format=Answer,
     )

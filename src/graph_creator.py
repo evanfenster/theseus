@@ -40,18 +40,10 @@ def create_knowledge_graph(documents: Dict[int, str]) -> Dict[str, Node]:
                 add_node(graph, source, [], doc_id)
             if target not in graph:
                 add_node(graph, target, [], doc_id)
-            proper_relationship = Relationship(relator, doc_id, {}, False)
-            reverse_relationship = Relationship(relator, doc_id, {}, True)
+            proper_relationship = Relationship(relator, doc_id, False)
+            reverse_relationship = Relationship(relator, doc_id, True)
             graph[source].add_relationship(graph[target], proper_relationship)
             graph[target].add_relationship(graph[source], reverse_relationship)
-
-    # Add a central node that is connected to all other nodes, but only in one direction
-    central_node_name = "__Detective__"
-    add_node(graph, central_node_name, [], -1)
-    for node_name, node in graph.items():
-        if node_name != central_node_name:
-            connector = Relationship("knows about", -1, {-1}, False)
-            graph[central_node_name].add_relationship(node, connector)
     
     return graph
 

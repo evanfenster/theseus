@@ -5,13 +5,11 @@ from typing import Set
 class Relationship:
     information: str
     document_source: int
-    document_permissions: Set[int]
     backwards: bool
 
-    def __init__(self, information: str, document_source: int, document_permissions: Set[int], backwards: bool):
+    def __init__(self, information: str, document_source: int, backwards: bool):
         self.information = information
         self.document_source = document_source
-        self.document_permissions = document_permissions
         self.backwards = backwards
 
     def __hash__(self) -> int:

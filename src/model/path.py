@@ -37,13 +37,15 @@ class Path:
             else:
                 break
 
-    def __str__(self) -> str:
+    def to_string(self, permissions: Set[int] = {-1}) -> str:
         result = []
         for i, element in enumerate(self.elements):
             if isinstance(element, Node):
-                facts = [fact for facts in element.facts.values() for fact in facts]
-                if facts:
-                    result.append(f"{element.name}, Facts: {{{', '.join(facts)}}}")
+                permitted_facts = [fact for doc_id, facts in element.facts.items() 
+                                   for fact in facts 
+                                   if -1 in permissions or doc_id in permissions]
+                if permitted_facts:
+                    result.append(f"{element.name}, Facts: {{{', '.join(permitted_facts)}}}")
                 else:
                     result.append(f"{element.name}")
             else:  # Set of Relationships
@@ -56,7 +58,8 @@ class Path:
                     next_node = self.elements[i+1].name
                 
                 for rel in element:
-                    (backward_rels if rel.backwards else forward_rels).append(rel.information)
+                    if -1 in permissions or rel.document_source in permissions:
+                        (backward_rels if rel.backwards else forward_rels).append(rel.information)
                 
                 rel_strs = []
                 if backward_rels:
@@ -64,7 +67,8 @@ class Path:
                 if forward_rels:
                     rel_strs.append(f"from {prev_node} to {next_node}: {', '.join(forward_rels)}")
                 
-                result.append(f"[{', '.join(rel_strs)}]")
+                if rel_strs:
+                    result.append(f"[{', '.join(rel_strs)}]")
         
         return " -> ".join(result)
 

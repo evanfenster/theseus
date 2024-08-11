@@ -21,7 +21,7 @@ def main():
 
 def read_documents() -> Dict[int, str]:
     documents = {}
-    document_id = 1
+    document_id = 0
     documents_dir = "documents"
     for filename in os.listdir(documents_dir):
         if filename.endswith(".txt"):

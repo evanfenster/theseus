@@ -37,6 +37,11 @@ class Path:
             else:
                 break
 
+    def copy(self) -> 'Path':
+        new_path = Path()
+        new_path.elements = self.elements.copy()
+        return new_path
+
     def to_string(self, permissions: Set[int] = {-1}) -> str:
         result = []
         for i, element in enumerate(self.elements):
@@ -73,4 +78,5 @@ class Path:
         return " -> ".join(result)
 
     def __repr__(self) -> str:
-        return self.__str__()
+        return self.to_string()
+

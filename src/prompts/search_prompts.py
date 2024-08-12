@@ -62,8 +62,7 @@ ANSWER_USER_PROMPT = """
 Based on the information provided, please answer the original question confidently and directly, even if you're not entirely certain of the accuracy. Synthesize all relevant information to formulate your best guess answer.
 
 Query: {query}
-Previous Search Reasoning: {reasoning}
-Final Path Chosen: {final_path}
+Previous Reasoning with Each Path Taken: {history}
 
 Please provide:
 1. Your best guess answer to the query (be confident and direct)

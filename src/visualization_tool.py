@@ -10,7 +10,7 @@ from model.path import Path
 from search import search
 import os
 
-def get_knowledge_graph(graph: Dict[str, 'Node'], final_path: Path, permissions: set[int], ax=None):
+def get_knowledge_graph(graph: Dict[str, 'Node'], history: list[str, Path], permissions: set[int], ax=None):
     # Create a NetworkX graph
     G = nx.DiGraph()
 
@@ -35,7 +35,19 @@ def get_knowledge_graph(graph: Dict[str, 'Node'], final_path: Path, permissions:
     # Color nodes and edges based on the final path and permissions
     node_colors = {}
     edge_colors = {}
-    if final_path:
+    if history:
+        for path in history[:-1]:
+            path_nodes = path[1].get_nodes()
+            for node in path_nodes:
+                node_colors[node.name] = 'green'
+            
+            for i in range(0, len(path[1].elements) - 1, 2):
+                source = path[1].elements[i].name
+                target = path[1].elements[i+2].name
+                edge_colors[(source, target)] = 'green'
+        
+        # Color the final path
+        final_path = history[-1][1]
         path_nodes = final_path.get_nodes()
         for i, node in enumerate(path_nodes):
             if i == 0:
@@ -144,7 +156,7 @@ def create_question_tab(notebook, graph, graph_tab):
         query = question_entry.get()
         depth = depth_var.get()
         permissions = getattr(question_tab, 'permissions', {-1})
-        result, path = search(graph, query, depth, permissions)
+        result, history = search(graph, query, depth, permissions)
         best_guess_text.delete('1.0', tk.END)
         best_guess_text.insert(tk.END, result.best_guess)
         positive_explanation_text.delete('1.0', tk.END)
@@ -156,7 +168,7 @@ def create_question_tab(notebook, graph, graph_tab):
         if hasattr(graph_tab, 'canvas'):
             graph_tab.canvas.figure.clear()
             ax = graph_tab.canvas.figure.add_subplot(111)
-            get_knowledge_graph(graph, path, permissions, ax)
+            get_knowledge_graph(graph, history, permissions, ax)
             graph_tab.canvas.draw()
             print("REDREW")
         else:

@@ -27,19 +27,10 @@ def get_knowledge_graph(graph: Dict[str, 'Node'], final_path: Path, permissions:
     else:
         fig = ax.figure
 
-    # Use a different layout algorithm for better visualization of distinct components
-    components = list(nx.connected_components(G.to_undirected()))
-    if len(components) > 1:
-        pos = {}
-        offset = 0
-        for component in components:
-            subgraph = G.subgraph(component)
-            sub_pos = nx.circular_layout(subgraph, scale=1.5)
-            sub_pos = {node: (x + offset, y) for node, (x, y) in sub_pos.items()}
-            pos.update(sub_pos)
-            offset += 8/len(components)
-    else:
-        pos = nx.circular_layout(G, scale=2.0)
+    # Use a spring layout for the entire graph, spaced out to fill the screen
+    pos = nx.spring_layout(G, k=1.5, iterations=50)
+    # Scale the layout to fit the entire screen
+    pos = {node: (x*2-1, y*2-1) for node, (x, y) in pos.items()}
 
     # Color nodes and edges based on the final path and permissions
     node_colors = {}

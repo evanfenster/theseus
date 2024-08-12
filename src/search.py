@@ -71,7 +71,15 @@ def bfs(graph: Dict[str, Node], query: str, paths: list[Path], visited: set(), m
                     path_copy.add_node(graph[neighbor.name])
                     option_num_to_path_num[len(options)] = i
                     options.append(path_copy)
-    options_enum = Enum('Option', {f'option_{i}': i for i in range(len(options))})
+    
+    # TO-DO: Better handling of exploring all possible paths based on source node
+    # This just repeats last search until depth expires
+    # Could pick new source node or end early
+    if options:
+        options_enum = Enum('Option', {f'option_{i}': i for i in range(len(options))})
+    else:
+        options_enum = Enum('Option', {f'option_{i}': i for i in range(1)})
+        options = [paths[-1]]
     
     class NextStep(BaseModel):
         reasoning: str

@@ -115,6 +115,13 @@ def create_question_tab(notebook, graph, graph_tab):
     question_entry = tk.Entry(question_tab, width=50)
     question_entry.pack(pady=10)
 
+    depth_label = tk.Label(question_tab, text="Search depth:")
+    depth_label.pack(pady=5)
+
+    depth_var = tk.IntVar(value=6)  # Default value
+    depth_spinbox = tk.Spinbox(question_tab, from_=1, to=30, textvariable=depth_var, width=5)
+    depth_spinbox.pack(pady=5)
+
     result_frame = ttk.Frame(question_tab)
     result_frame.pack(fill='both', expand=True, padx=20, pady=20)
 
@@ -135,8 +142,9 @@ def create_question_tab(notebook, graph, graph_tab):
 
     def submit_question():
         query = question_entry.get()
+        depth = depth_var.get()
         permissions = getattr(question_tab, 'permissions', {-1})
-        result, path = search(graph, query, 3, permissions)
+        result, path = search(graph, query, depth, permissions)
         best_guess_text.delete('1.0', tk.END)
         best_guess_text.insert(tk.END, result.best_guess)
         positive_explanation_text.delete('1.0', tk.END)
